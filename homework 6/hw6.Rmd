@@ -1,0 +1,133 @@
+---
+title: "STAT435 hw6"
+author: "Haoran Yu"
+date: "May 15th, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+
+####(a)
+
+```{r}
+dat = read.table("D:\\class\\STAT435\\homework 6\\wine.txt", sep = ";", header  = T)
+```
+
+I get this data from UCI machine learning repository. This data is about the wine's quality and its physicochemical feature. The response Y is the quality of wine, which is score from 0 to 10 and is a discrete type. The features x1 is the fixed acidity of the wine, x2 is the volatile acidity of the wine, x3 is the citric acid of the wine, x4 is the residual sugar of the wine, x5 is the chlorides of the wine, x6 is the free sulfur dioxide of the wine, x7 is the total sulfur dioxide of the wine, x8 is the density of the wine, x9 is the pH of the wine, x10 is the sulphates of the wine, x11 is the alcohol of the wine. All 11 features are quantitative. The value of n is 18 and the value of p is 11. 
+```{r}
+pairs(dat)
+hist(dat$fixed.acidity, xlab = "fixed.acidity", main = "hist of fixed.acidity")
+hist(dat$volatile.acidity, xlab = "volatile.acidity", main = "hist of volatile.acidity")
+hist(dat$citric.acid, xlab = "citric.acid", main = "citric.acid")
+hist(dat$residual.sugar, xlab = "residual.sugar", main = "residual.sugar")
+hist(dat$chlorides, xlab = "chlorides", main = "chlorides")
+hist(dat$free.sulfur.dioxide, xlab = "free.sulfur.dioxide", main = "free.sulfur.dioxide")
+hist(dat$total.sulfur.dioxide, xlab = "total.sulfur.dioxide", main = "total.sulfur.dioxide")
+hist(dat$density, xlab = "density", main = "density")
+hist(dat$pH, xlab = "pH", main = "pH")
+hist(dat$sulphates, xlab = "sulphates", main = "sulphates")
+hist(dat$alcohol, xlab = "alcohol", main = "alcohol")
+```
+
+####(b)
+
+```{r}
+train = dat[1:13, ]
+test = dat[14:18, ]
+```
+
+The value of n is 13 and the value of p is 11.
+
+####(c)
+
+```{r}
+lm.1 = lm(quality ~ ., train)
+lm.pred = predict(lm.1, test)
+mean((lm.pred - test$quality) ^ 2)
+```
+
+The test error that I obtained is 13.21823.
+
+####(d)
+
+```{r}
+x1 = model.matrix(quality ~ ., train)[, -1]
+x2 = model.matrix(quality ~ ., test)[, -1]
+library(glmnet)
+ridge.fit = cv.glmnet(x1, train$quality, alpha = 0, grouped = FALSE)
+ridge.lambda = ridge.fit$lambda.min
+ridge.pred = predict(ridge.fit, s = ridge.lambda, x2)
+mean((ridge.pred - test$quality) ^ 2)
+```
+
+The test error that I obtained is 1.421334.
+
+####(e)
+
+```{r}
+set.seed(1)
+lasso.fit = cv.glmnet(x1, train$quality, alpha = 1, grouped = FALSE)
+lasso.lambda = lasso.fit$lambda.min
+lasso.pred = predict(lasso.fit, s = lasso.lambda, x2)
+lasso.coef = predict(lasso.fit, s = lasso.lambda, type = "coefficients")[1:11, ]
+sum(lasso.coef != 0)
+mean((lasso.pred - test$quality) ^ 2)
+```
+
+The test error that I obtained is 1.5397, and the number of nonzero coefficent estimates is 5. 
+
+####(f)
+
+```{r}
+library(pls)
+pcr.fit = pcr(quality ~ . , data = train, scale = TRUE, validation = "CV")
+validationplot(pcr.fit, val.type = "MSEP",ylim = c(0, 5))
+pcr.pred = predict(pcr.fit, x2, ncomp = 5)
+mean((pcr.pred - test$quality) ^ 2)
+```
+
+The test error that I obtained is 1.506728, the value of M selected by cross-validation is 5.
+
+####(g)
+
+```{r}
+pls.fit = plsr(quality ~ . , data = train, scale = TRUE, validation = "CV")
+validationplot(pls.fit, val.type = "MSEP", ylim = c(0, 5))
+pls.pred = predict(pls.fit, x2, ncomp = 2)
+mean((pls.pred - test$quality) ^ 2)
+```
+
+The test error that I obtained is 1.422798, the value of M selected by cross-validation is 2.
+
+####(h)
+
+The best error that I obtained in terms of error is 1.421334. There is no much difference among the test error resulting from the approach from (d) to (f) (the method we learn in chapter 6), by there is a huge difference between the resulting of linear model and those method. I would prefer lasso, because I can easily see from the result that which features is unrelated to the response and it helps a lot with interpretation.
+
+## Problem 2
+
+```{r}
+plot(-3:-1, rep(2, 3), type = 'l', xlim = c(-3, 8), ylim = c(0, 14), xlab = "x", ylab = "y")
+points(-3, 2, pch = 19)
+lines(-1:1, rep(1, 3))
+points(-1, 1, pch = 1)
+points(-1, 2, pch = 19)
+points(1, 1, pch = 19)
+lines(1:3, c(3, 5, 7))
+points(1, 3, pch = 1)
+points(3, 7, pch = 19)
+lines(3:5, c(10, 12, 14))
+points(3, 10, pch = 1)
+points(5, 14, pch = 19)
+lines(5:6, c(0, 0))
+points(5, 0, pch = 1)
+points(6, 0, pch = 19)
+lines(6:8, rep(2, 3))
+points(6, 2, pch = 1)
+points(8, 2, pch = 19)
+```
+
+The curve is constant between -3 and -1 : $y = 2$, constant between -1 and 1 : $y = 1$, linear between 1 and 3 : $y = 2x+1$, linear between 3 and 5 : $y=2x+4$, constant between 5 and 6 : $y=0$, and constant between 6 and 8 : $y=2$.
