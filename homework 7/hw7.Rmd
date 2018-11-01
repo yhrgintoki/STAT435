@@ -1,0 +1,163 @@
+---
+title: "STAT435 hw7"
+author: "Haoran Yu"
+date: "May 21, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Problem 1
+
+####(a)
+
+```{r}
+dat = read.csv("D:\\class\\STAT435\\homework 7\\wine.csv", sep = ";", header = T)
+```
+
+I get this data from UCI machine learning repository. This data is about the wine's pH and its physicochemical feature. The response Y is the pH of wine, which is quantitative. The features x1 is the fixed acidity of the wine, x2 is the volatile acidity of the wine, x3 is the citric acid of the wine. All  features are quantitative. The value of n is 1599 and the value of p is 3.
+
+####(b)
+
+```{r, warning=FALSE}
+fit = mgcv::gam(pH ~ s(fixed.acidity) + s(volatile.acidity) + s(citric.acid), data = dat)
+fit
+fit1 = smooth.spline(dat$fixed.acidity, dat$pH, df = 8.26)
+plot(dat$fixed.acidity, dat$pH, col = "grey", xlab = "fixed.acidity", ylab = "pH")
+lines(fit1)
+fit2 = smooth.spline(dat$volatile.acidity, dat$pH, df = 2.59)
+plot(dat$volatile.acidity, dat$pH, col = "grey", xlab = "volatile.acidity", ylab = "pH")
+lines(fit2)
+fit3 = smooth.spline(dat$citric.acid, dat$pH, df = 5.99)
+plot(dat$citric.acid, dat$pH, col = "grey", xlab = "citric.acid", ylab = "pH")
+lines(fit3)
+```
+
+I choose smooth spline with 8.26 degree of freedom for fixed acidity, smooth spline with 2.59 degree of freedom for volatile acidity, and smooth spline with 5.99 degree of freedom for citric acid when I made in fitting this model.
+
+####(c)
+
+```{r}
+lm.1 = lm(pH ~ fixed.acidity + volatile.acidity + citric.acid, data = dat)
+plot(dat$fixed.acidity, dat$pH, col = "grey", xlab = "fixed.acidity", ylab = "pH")
+lines(dat$fixed.acidity, (lm.1$coeff[1]+lm.1$coeff[2]*dat$fixed.acidity))
+plot(dat$volatile.acidity, dat$pH, col = "grey", xlab = "volatile.acidity", ylab = "pH")
+lines(dat$volatile.acidity, (lm.1$coeff[1]+lm.1$coeff[3]*dat$volatile.acidity))
+plot(dat$citric.acid, dat$pH, col = "grey", xlab = "citric.acid", ylab = "pH")
+lines(dat$citric.acid, (lm.1$coeff[1]+lm.1$coeff[4]*dat$citric.acid))
+```
+
+####(d)
+
+```{r}
+dat1 = dat[1:1000, ]
+dat2 = dat[1001:1599, ]
+fit = mgcv::gam(pH ~ s(fixed.acidity) + s(volatile.acidity) + s(citric.acid), data = dat1)
+pred1 = predict(fit, dat2)
+lm.1 = lm(pH ~ fixed.acidity + volatile.acidity + citric.acid, data = dat1)
+pred2 = predict(lm.1, dat2)
+mean((dat2$pH - pred1)^2)
+mean((dat2$pH - pred2)^2)
+```
+
+The test error of the generalized additive model is 0.01110035, the test error of the linear model is 0.01244565, the generalized additive model gives a better fit to the data.
+
+## Problem 2
+
+####(a)
+
+```{r}
+set.seed(7)
+x = 1:1000
+error = rnorm(1000)
+y = sin((1:1000)/100)*4+error
+var(error)
+mean(error^2)
+```
+
+The form of $f(x)$ for this simulation setting is $4sin(\frac{x}{100})$. The value of $Var(\epsilon)$ is 0.964956, and the value of $E(Y-f(x))^2$ is 0.9640003.
+
+####(b)
+
+```{r}
+library(splines)
+plot(x, y, col = "gray", ylim = c(-6, 12))
+fit = lm(y ~ bs(x, df = 13))
+pred3 = predict(fit, se = T)
+lines(x, pred3$fit, col = "red")
+fit = lm(y ~ bs(x, df = 8))
+pred5 = predict(fit, se = T)
+lines(x, pred5$fit, col = "blue")
+fit = lm(y ~ bs(x, df = 3))
+pred1 = predict(fit, se = T)
+lines(x, pred1$fit, col = "yellow")
+lines(x, sin(x/100)*4)
+legend('topright', c('spline with 0 knots', 'spline with 5 knots', 'spline with 10 knots', 'true function f(x)'), col = c("yellow", "blue", "red", "black"), lty = 1)
+```
+
+####(c)
+
+Five knots seems to have the best fit, because the true function f(x) on the scope of x (0 to 1000) seems to have three turning points and two inflection points, which means a spline with five knots seems to have a best fit.
+
+####(d)
+
+```{r, warning=FALSE}
+library(boot)
+set.seed(123)
+xnew = sample(1:1000, 1000)
+mse = numeric(20)
+cv = numeric(20)
+dat = data.frame(x = x, y = y)
+for (i in 1:20) {
+  for (j in 1:10) {
+    test = dat[xnew[((j-1)*100+1):(j*100)], ]
+    train = dat[-xnew[(((j-1)*100+1):(j*100))], ]
+    fit = lm(y ~ bs(x, df = 3+i), data = train)
+    pred = predict(fit, newdata = test)
+    mse[j] = mean((test$y - pred)^2)
+  }
+  cv[i] = mean(mse)
+}
+plot(1:20, cv, type = 'l', xlab = "num of knots", ylab = "test MSE")
+which.min(cv)
+fit = lm(y ~ bs(x, df = 8))
+pred5 = predict(fit, se = T)
+plot(x, y, col = "gray", ylim = c(-6, 10))
+lines(x, pred5$fit, col = "red")
+lines(x, sin(x/100)*4)
+legend('topright', c('spline with 5 knots', 'true function f(x)'), col = c("red", "black"), lty = 1)
+```
+
+The best number of knots is 5.
+
+####(e)
+
+```{r, warning=FALSE}
+dat1 = dat[xnew[1:200], ]
+dat2 = dat[-xnew[1:200], ]
+fit = lm(y ~ bs(x, df = 8), data = dat1)
+pred = predict(fit, newdata = dat2)
+mean((dat2$y-pred)^2)
+```
+
+The estimate of the test error is 0.9966391, and it is slightly larger than my answer in (a).
+
+####(f)
+
+```{r}
+lm.1 = lm(y ~ x)
+lm.pred = predict(lm.1)
+plot(x, y, col = "gray", ylim = c(-6, 10))
+lines(x, lm.pred, col = "red")
+lines(x, sin(x/100)*4)
+legend('topright', c('linear model', 'true function f(x)'), col = c("red", "black"), lty = 1)
+dat1 = dat[xnew[1:200], ]
+dat2 = dat[-xnew[1:200], ]
+lm.1 = lm(y ~ x, data = dat1)
+pred = predict(lm.1, dat2)
+mean((dat2$y-pred)^2)
+```
+
+The estimate of the test error is 8.080151, and it is much larger than my answer in (a), also it is much larger than the test error I estimated for regression spline.
