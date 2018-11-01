@@ -1,0 +1,401 @@
+---
+title: "STAT 435 HW1"
+author: "Haoran Yu"
+date: "March 28, 2018"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+## Problem 1
+
+####(a)
+
+```{r}
+library(MASS)
+set.seed(123)
+train_red = mvrnorm(25, c(0, 0), diag(2))
+train_blue = mvrnorm(25, c(1.5, 1.5), diag(2))
+xlim = range(c(train_red[, 1], train_blue[, 1]))
+ylim = range(c(train_red[, 2], train_blue[, 2]))
+plot(train_red[, 1], train_red[, 2], col = "red", xlim = xlim, ylim = ylim, xlab = 'Feature 1', ylab = 'Feature 2')
+points(train_blue[, 1], train_blue[, 2], col = "blue")
+```
+
+####(b)
+
+```{r}
+set.seed(1234)
+test_red = mvrnorm(25, c(0, 0), diag(2))
+test_blue = mvrnorm(25, c(1.5, 1.5), diag(2))
+xlim = range(c(train_red[, 1], train_blue[, 1], test_red[, 1], test_blue[, 1]))
+ylim = range(c(train_red[, 2], train_blue[, 2], test_red[, 2], test_blue[, 2]))
+plot(train_red[, 1], train_red[, 2], col = "red", xlim = xlim, ylim = ylim, xlab = 'Feature 1', ylab = 'Feature 2')
+points(train_blue[, 1], train_blue[, 2], col = "blue")
+points(test_red[, 1], test_red[, 2], col = "red", pch = 0)
+points(test_blue[, 1], test_blue[, 2], col = "blue", pch = 0)
+legend('topleft', c('training observations', 'test observations'), pch = c(1, 0))
+```
+
+####(c)
+
+```{r}
+library(class)
+train = rbind(train_red, train_blue)
+test = rbind(test_red, test_blue)
+real = rep(c("red", "blue"), c(25, 25))
+error_train = numeric(20)
+error_test = numeric(20)
+for(i in 1:20){
+  pred = knn(train, train, cl = real, k = i)
+  error_train[i] = 1 - sum(pred == real) / 50
+  pred = knn(train, test, cl = real, k = i)
+  error_test[i] = 1 - sum(pred == real) / 50
+
+}
+x = 1 / c(1 : 20)
+plot(x, error_train, ylim = range(c(error_train, error_test)), type = "b",lty = 1, col = "green", xlab = '1/K', ylab = 'Error Rate')
+lines(x, error_test, type = "b",lty = 2, col = "black")
+legend('topleft', c('training errors', 'test errors'), col = c("green", "black"), lty = c(1, 2))
+```
+
+Explain: As the 1/k increase, the k decrease, which means that the flexibility will increase according to the KNN decision boundary. As the flexibility increase, the training error will decrease monotonically and the test error will first decrease and then increase according to the bias-variance trade-off because the variance will increase and bias will decrease. In this plot, it has decrease but not so obvious.
+
+####(d)
+```{r}
+min = error_test[1]
+kmin = 1
+for(i in 1:20){
+  if(min > error_test[i]){
+    min = error_test[i]
+    kmin = i
+  }
+}
+pred = knn(train, test, cl = real, k = kmin)
+plot(test[, 1], test[, 2], col = as.character(pred), pch = 20, xlab = 'Feature 1', ylab = 'Feature 2')
+points(test[, 1], test[, 2], col = real, pch = 0)
+legend('topleft', c('predicted class', 'true class'), pch = c(20, 0))
+```
+
+####(e)
+
+```{r}
+library(mvtnorm)
+pro = numeric(10000)
+for(i in 1:10000){
+  Y = sample(c("red", "blue"), size = 1)
+  if(Y == "red"){
+    X = mvrnorm(100, c(0, 0), diag(2))
+    pdf_true = dmvnorm(X, c(0, 0), diag(2))
+    pdf_wrong = dmvnorm(X, c(0.1, 0.1), diag(2))
+  } else {
+    X = mvrnorm(100, c(0.1, 0.1), diag(2))
+    pdf_wrong = dmvnorm(X, c(0.1, 0.1), diag(2))
+    pdf_true = dmvnorm(X, c(0, 0), diag(2))
+  }
+  time = 0
+  for(j in 1:100){
+    if(pdf_true[j] > pdf_wrong[j])
+      time = time + 1
+  }
+  pro[i] = time / 100
+}
+1 - sum(pro)/10000
+```
+
+The Bayes error rate is nearly 0.144. 
+
+Justify: The Bayes error rate is nonzero because there exists an irreducible error. When we generate points from the multivariate normal distribution according labels, it is possblie that the point that is generated is so far from the $\mu$ of the distribution that can be recogized as in the different distribution of the other labels (the pdf of the point in this distribution is smaller than the other distribution). Thus the Bayes error rate exist.
+
+## Problem 2
+
+####(a)
+```{r}
+rm(list = ls())
+set.seed(123)
+train_x1 = runif(200, 0, 1)
+set.seed(1234)
+train_x2 = runif(200, 0, 1)
+train_label = numeric(200)
+for(i in 1:200){
+  if(((train_x1[i] - 0.5) ^ 2 + (train_x2[i] - 0.5) ^ 2 )> 0.15) {
+    if(train_x1[i] > 0.5) {
+      train_label[i] = "red"
+    } else {
+      train_label[i] = "green"
+    } 
+  } else {
+    train_label[i] = "blue"
+  }
+}
+plot(train_x1, train_x2, col = train_label, xlab = 'X1', ylab = 'X2')
+```
+
+####(b)
+
+```{r}
+set.seed(246)
+test_x1 = runif(200, 0, 1)
+set.seed(2468)
+test_x2 = runif(200, 0, 1)
+test_label = numeric(200)
+for(i in 1:200){
+  if(((test_x1[i] - 0.5) ^ 2 + (test_x2[i] - 0.5) ^ 2 )> 0.15) {
+    if(test_x1[i] > 0.5) {
+      test_label[i] = "red"
+    } else {
+      test_label[i] = "green"
+    } 
+  } else {
+    test_label[i] = "blue"
+  }
+}
+plot(train_x1, train_x2, xlim = range(c(train_x1, test_x1)), ylim = range(c(train_x2, test_x2)), col = train_label, xlab = 'X1', ylab = 'X2')
+points(test_x1, test_x2, col = test_label, pch = 0)
+legend('topleft', c('training observations', 'test observations'), pch = c(1, 0))
+```
+
+####(c)
+
+```{r}
+train = cbind(train_x1, train_x2)
+test = cbind(test_x1, test_x2)
+error_train = numeric(50)
+error_test = numeric(50)
+for(i in 1:50) {
+  pred = knn(train, train, cl = train_label, k = i)
+  error_train[i] = 1 - sum(pred == train_label) / 200
+  pred = knn(train, test, cl = train_label, k = i)
+  error_test[i] = 1 - sum(pred == test_label) / 200
+}
+x = 1 / c(1:50)
+plot(x, error_train, ylim = range(c(error_train, error_test)), type = "b",lty = 1, col = "green", xlab = '1/K', ylab = 'Error Rate')
+lines(x, error_test, type = "b",lty = 2, col = "black")
+legend('topleft', c('training errors', 'test errors'), col = c("green", "black"), lty = c(1, 2))
+```
+
+Explain: As the 1/k increase, the k decrease, which means that the flexibility will increase according to the KNN decision boundary. As the flexibility increase, the training error will decrease monotonically and the test error will first decrease and then increase according to the bias-variance trade-off because the variance will increase and bias will decrease. In this plot, it has increase but not so obvious.
+
+####(d)
+
+```{r}
+min = error_test[1]
+kmin = 1
+for(i in 1:50){
+  if(min > error_test[i]){
+    min = error_test[i]
+    kmin = i
+  }
+}
+pred = knn(train, test, cl = train_label, k = kmin)
+plot(test[, 1], test[, 2], col = as.character(pred), pch = 20, xlab = 'Feature 1', ylab = 'Feature 2')
+points(test[, 1], test[, 2], col = test_label, pch = 0)
+legend('topleft', c('predicted class', 'true class'), pch = c(20, 0))
+```
+
+####(e)
+
+The Bayes error rate is 0. It is beacause that for every observation X1 and X2, the Y is fixed, which means that there is no doubt that whether X1 and X2 are belong to this laber or not. The conditional probability will always be 1. Thus the Bayes error rate is 0. 
+
+Relate: According to the plot in (c), as the 1/k increase, which means k increase and flexibility increase, the line of training error are kind of level off and approach to a very small value. According to the plot in (d), all points in the same label have their own invisible boundaries, which means that if and only if the point is in that boundary, it shows that label, which means we can 100% sure a point's label if we know its position.
+
+## Problem 3
+
+####(a)
+
+It is a regression problem, the goal is prediction, and n = 50, p = 8
+
+####(b)
+
+It is a classification problem, the goal is inference, and n = 50, p = 6
+
+## Problem 4
+
+####(a)
+
+An inflexible statistical machine learning method will perform better. Since n is very small and p is very large, an inflexible method (like linear regression) can provide some external prior information about the true regression. Also, a flexible method will tend to overfit the data, which will cause an extremely high variance. Thus we should choose an inflexible method
+
+####(b)
+
+A flexible statistical machine learning method will perform better. Since n is very large and p is very small, the probability of overfit will be small. Thus, the rate of the increase of variance will be smaller than the rate of the decrease of bias when the method become more flexible. According to the bias-variance trade-off, we should choose a flexible method
+
+####(c)
+
+A flexible statistical machine learning method will perform better. Since the relationship between predictors and response is highly non-linear, the bias will be extremely large if the method is inflexible (like linear regression) and the variance will be not so big if the method is flexible. According to the bias-variance trade-off, we should choose a flexible method
+
+####(d)
+
+An inflexible statistical machine learning method will perform better. Since the variance of error terms is extremely high, the probability that a flexible method will fit to a noise in the error terms will be big, which will cause an extremely high variance. Thus we should choose an inflexible method.
+
+## Problem 5
+
+####(a)
+
+See attatched files.
+
+####(b)
+
+The typical(squared) bias will decreases monotonically as the flexibility increase. Because bias refers to the error that is introduced by approximating a real-life problem, which means that linear regression has a huge bias for the reason that it is unlikely that any real-life problem truly has such a simple linear relationship. Thus, as the flexibility increase, the regression will more approach a real-life problem and have less bias.
+
+The variance will increase monotonically as the flexibility increase. Because variance refers to the amount by which f would change if we estimated it using a different training data set, which means that an overfit regression has a huge variance for the reason that small changes in the training data can result in large changes in f. Thus, as the flexibility increase, the regression will more likely overfit and have more variance.
+
+The training error will decrease monotonically as the flexibility increase. Because as the flexibility increase, the f will fit the observed data more closely and predicted responses are more close to the true responses, which will make the training error smaller.
+
+The test error will intially declines as flexibility increases but at some point it levels off and then starts to increase again. As the flexibility increase, the variance will increase and the bias will decrease. According to the bias-variance trade-off,the test error will first decrease then increase
+
+The Bayes (irreducible) error will remain the same because it is irreducible and it cannot decrease no matter how flexibility it is. According to the bias-variance trade-off, the test error curve is always above this curve.
+
+## Problem 6
+
+####(a)
+
+```{r}
+library(MASS)
+data(Boston)
+nrow(Boston)
+```
+
+There are 506 rows in this data set.
+
+```{r}
+ncol(Boston)
+```
+
+There are 14 columns in this data set.
+
+The rows represent 506 housing values in Boston suburbs (n), and the columns represent 14 features in Boston suburbs (p).
+
+####(b)
+
+```{r}
+pairs(Boston)
+```
+
+There may be a relationship between crim and age, dis, rad, tax, ptratio
+
+There may be a relationship between zn and indus, nox, age, lstat
+
+There may be a relationship between indus and age, dis 
+
+There may be a relationship between nox and age, dis
+
+There may be a relationship between dis, lstat and lstat, medv
+
+####(c)
+
+```{r}
+plot(Boston$age, Boston$crim)
+```
+
+The older the unit, the higher rate of crime
+
+```{r}
+plot(Boston$dis, Boston$crim)
+```
+
+The closer to the employment centres, the higher rate of crime
+
+```{r}
+plot(Boston$rad, Boston$crim)
+```
+
+The higher index of accessibility to radial highways, the higher rate of crime
+
+```{r}
+plot(Boston$tax, Boston$crim)
+```
+
+The higher tax rate, the higher rate of crime 
+
+```{r}
+plot(Boston$ptratio, Boston$crim)
+```
+
+The higher ratio of pupil-teacher, the higher rate of crime
+
+####(d)
+
+```{r}
+hist(Boston$crim, breaks = 50)
+```
+
+```{r}
+nrow(Boston[Boston$crim > 20, ])
+range(Boston$crim)
+```
+
+There are 18 suburbs appear to have a crime rate > 20. The range of crime rate is from 0.00632 to 88.97620
+
+```{r}
+hist(Boston$tax, breaks = 50)
+```
+
+```{r}
+nrow(Boston[Boston$tax > 660, ])
+range(Boston$tax)
+```
+
+There are 137 suburbs appear to have a tax rate > 660. The range of the tax rate is from 187 to 711
+
+```{r}
+hist(Boston$ptratio, breaks = 50)
+```
+
+```{r}
+nrow(Boston[Boston$ptratio > 20, ])
+range(Boston$ptratio)
+```
+
+There are 201 suburbs appear to have Pupil-teacher ratios > 20. The range of Pupil-teacher ratios is from 12.6 to 22
+
+####(e)
+
+```{r}
+nrow(Boston[Boston$chas == 1, ])
+```
+
+There are 35 suburbs in this data set bound the Charles river
+
+####(f)
+
+```{r}
+mean(Boston$ptratio)
+sd(Boston$ptratio)
+```
+
+The mean and standard deviation of the pupil-teacher ratio among the towns in this data set are 18.45553 and 2.164946
+
+####(g)
+
+```{r}
+t(subset(Boston, medv == max(Boston$medv)))
+```
+
+The 162nd, 163rd, 164th, 167th, 187th, 196th, 205th, 226th, 258th, 268th, 284th, 369th, 370th, 371st, 372nd, 373rd suburb have highest median value of owner-occupied homes.
+
+The tax of these suburbs are always low and the crime rate of these suburbs are always low, which means high median value of own-occupied homes may relate to low crime rate and low tax rate.
+
+####(h)
+
+```{r}
+nrow(Boston[Boston$rm > 6, ])
+```
+
+There are 333 suburbs average more than six rooms per dwelling.
+
+```{r}
+nrow(Boston[Boston$rm > 8, ])
+```
+
+There are 13 suburbs average more than six rooms per dwelling.
+
+```{r}
+summary(subset(Boston, rm > 8))
+```
+
+```{r}
+summary(Boston)
+```
+
+These suburbs have relative low rate of crime and relative low status of the population comparing to the total.
